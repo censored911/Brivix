@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#F97316"/>
+  <!-- B glyph: bbox x 146-366, y 116-396 - centred on 256/256 in both axes.
+       Stem 56 wide, bars 52 thick; the lower bowl reaches further right than
+       the upper one, as it should on a B. Counters are cut with evenodd. -->
+  <path fill="#0A0A0A" fill-rule="evenodd" d="
+    M146 116
+    H296
+    A44 64 0 0 1 296 244
+    H306
+    A60 76 0 0 1 306 396
+    H146
+    Z
+    M202 168
+    H272
+    A24 25 0 0 1 272 218
+    H202
+    Z
+    M202 270
+    H282
+    A32 37 0 0 1 282 344
+    H202
+    Z"/>
+</svg>

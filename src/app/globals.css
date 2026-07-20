@@ -1,0 +1,260 @@
+@import "tailwindcss";
+
+@theme {
+  /* Design scale: utility numbers = design px at 1920w (like the original site).
+     p-20 => calc(20 * 100vw / 1920) */
+  --spacing: calc(100vw / 1920);
+
+  --color-grey: rgb(222, 222, 222);
+  --color-black: rgb(0, 0, 0);
+  --color-white: rgb(255, 255, 255);
+  --color-accent: #f97316;
+
+  --font-title: var(--font-denim), Arial, sans-serif;
+  --font-mono: var(--font-graebenbach), "Courier New", monospace;
+
+  --breakpoint-l: 64rem;
+  --breakpoint-s: 40rem;
+}
+
+:root {
+  --dw: 1920;
+  --ease: 0.8s cubic-bezier(0.84, 0, 0.16, 1);
+  --smooth: cubic-bezier(0.76, 0, 0.24, 1);
+  --fast-ease: 0.6s cubic-bezier(0.84, 0, 0.16, 1);
+  --color-ease: 0.4s ease-out;
+  --px: calc(100vw / 1920);
+}
+
+@media (max-width: 40rem) {
+  :root {
+    --dw: 390;
+    --px: calc(100vw / 390);
+    --spacing: calc(100vw / 390);
+  }
+}
+
+html {
+  scrollbar-width: none;
+}
+html::-webkit-scrollbar {
+  display: none;
+}
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+body {
+  background: var(--color-grey);
+  color: var(--color-black);
+  font-family: var(--font-title);
+  font-size: calc(16 * var(--px));
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+}
+
+/* Entrance tweens park their elements off to the side until their trigger
+   fires (`x: ±28–64`). `overflow-x: clip` on <body> stops the page from
+   *scrolling* sideways, but the document still measures wider than the
+   viewport — and the initial containing block grows with it, so every
+   `fixed left-0 right-0` element (nav bar, mobile menu) is laid out wider
+   than the screen and its right edge falls off-frame.
+   Clipping at the content root contains those transforms so they can never
+   widen the ICB. `clip` (not `hidden`) is deliberate: it is the only
+   overflow value that may differ per-axis without creating a scroll
+   container, so the hero's `sticky` stages keep working. */
+main,
+footer {
+  overflow-x: clip;
+}
+
+/* ---- Type scale (design px @1920) ---- */
+.h1 {
+  font-size: calc(190 * var(--px));
+  line-height: 1;
+  letter-spacing: -0.05em;
+  font-weight: 400;
+}
+.h2 {
+  font-size: calc(125 * var(--px));
+  line-height: 1;
+  letter-spacing: -0.05em;
+  font-weight: 400;
+}
+.h3 {
+  font-size: calc(35 * var(--px));
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-weight: 500;
+}
+._45 { font-size: calc(45 * var(--px)); letter-spacing: -0.02em; }
+._35 { font-size: calc(35 * var(--px)); letter-spacing: -0.03em; }
+._27 { font-size: calc(27 * var(--px)); letter-spacing: -0.02em; }
+._20 { font-size: calc(20 * var(--px)); line-height: 1.3; letter-spacing: -0.01em; }
+._16 { font-size: calc(16 * var(--px)); }
+._9  { font-size: calc(9 * var(--px)); line-height: 1.4; }
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+@media (max-width: 40rem) {
+  .sm_14 { font-size: calc(14 * var(--px)); }
+  .sm_27 { font-size: calc(27 * var(--px)); }
+  .h1 { font-size: calc(64 * var(--px)); }
+  /* 40 (not 48): the hero staircase lines are unwrappable single lines and
+     must fit 390 minus gutters and their authored stagger margins. */
+  .h2 { font-size: calc(40 * var(--px)); }
+  ._45 { font-size: calc(32 * var(--px)); }
+  ._27 { font-size: calc(20 * var(--px)); }
+  ._20 { font-size: calc(14 * var(--px)); }
+  /* 9 design-px renders at 9 real px on a 390 phone — under the legibility
+     floor for the mono labels. 11 keeps the miniature feel but readable. */
+  ._9 { font-size: calc(11 * var(--px)); }
+}
+
+/* ---- Vertical text (sidebar / rails) ---- */
+.v-text {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+.v-text-down {
+  writing-mode: vertical-rl;
+}
+
+/* ---- Noise overlay ---- */
+.noise {
+  width: max(100lvw, 100lvh);
+  height: max(100lvw, 100lvh);
+  transform: translate(-50%, -50%);
+  background-image: url("/images/noise.webp");
+  background-repeat: repeat;
+  background-size: calc(450 * var(--px));
+  opacity: 0.5;
+  mix-blend-mode: overlay;
+}
+
+/* ---- Section rhythm ----
+   The original paces sections off the viewport, not the design-px scale:
+   computed padding is exactly 100vh on every py-/pt-/pb-section. */
+.py-section { padding-block: 100vh; }
+.pt-section { padding-top: 100vh; }
+.pb-section { padding-bottom: 100vh; }
+
+/* On a phone a viewport is ~840px tall and the sections stack to a 16,000px
+   page that is mostly empty — the pacing reads as dead air rather than
+   rhythm. Half the beat keeps the cadence without the void.
+   scrollToSection() reads the computed padding, so anchors follow this. */
+@media (max-width: 40rem) {
+  .py-section { padding-block: 45vh; }
+  .pt-section { padding-top: 45vh; }
+  .pb-section { padding-bottom: 45vh; }
+}
+
+/* ---- Masked line-reveal helpers (SplitText) ---- */
+.split-mask .line {
+  overflow: hidden;
+}
+
+/* ---- Link hover: two-line masked slide ---- */
+.link-anim {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+}
+.link-anim > span {
+  display: block;
+  transition: transform var(--ease);
+}
+.link-anim > span::after {
+  content: attr(data-text);
+  position: absolute;
+  left: 0;
+  top: 100%;
+  width: 100%;
+}
+.link-anim:hover > span {
+  transform: translateY(-100%);
+}
+
+/* ---- White gradient (services items) ---- */
+.white-gradient-light {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.92) 0%,
+    rgba(255, 255, 255, 0.55) 70%,
+    rgba(255, 255, 255, 0.15) 100%
+  );
+}
+
+@media (max-width: 40rem) {
+  /* The GL figures are staged for the desktop's empty left column; on mobile
+     the list spans the full width and sits on top of them, so the rows must
+     not be see-through. */
+  .white-gradient-light {
+    background: rgb(255 255 255 / 0.95);
+  }
+}
+
+/* ---- Nav blur wedge ---- */
+.nav-blur {
+  position: absolute;
+  top: calc(-100 * var(--px));
+  left: calc(-390 * var(--px));
+  right: calc(-80 * var(--px));
+  height: calc(260 * var(--px));
+  transform: rotate(13deg);
+  pointer-events: none;
+  backdrop-filter: blur(20px);
+  background: color-mix(in srgb, var(--color-white), transparent 80%);
+  mask-image: conic-gradient(from 270deg at 0% 50%, transparent 0deg, black 90deg, transparent 90deg),
+    linear-gradient(to bottom, #000 40%, transparent 100%);
+  mask-composite: intersect;
+  opacity: var(--nav-blur-load, 0);
+  transition: opacity 1.2s ease;
+}
+
+/* ---- Nerves cards: hover zoom (wrapper owns the hover transform;
+   GSAP owns the img transform for parallax — they must not share an element) ---- */
+.nerves-zoom {
+  transition: transform 0.8s var(--smooth);
+}
+@media (hover: hover) {
+  .group:hover .nerves-zoom {
+    transform: scale(1.03);
+  }
+}
+
+/* ---- Marquee ---- */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes marquee-rev {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
+}
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee var(--marquee-duration, 40s) linear infinite;
+}
+.marquee-track.rev {
+  animation-name: marquee-rev;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track { animation: none; }
+  .nerves-zoom { transition: none; }
+  html { scroll-behavior: auto; }
+}
