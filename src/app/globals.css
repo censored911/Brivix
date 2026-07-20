@@ -165,6 +165,19 @@ footer {
   overflow: hidden;
 }
 
+/* Mobile compositor hints for the scroll-scrubbed Hero region (form identities
+   → trigger insight). The sticky pin stages and their SplitText reveals run
+   transform/opacity scrubs every scroll tick; promoting the animating layers
+   keeps that work off the main thread so the GPU (now lighter — see
+   GLBackground) isn't fighting layout on phones. Desktop is untouched. */
+@media (max-width: 40rem) {
+  .hero-inner,
+  .hero-line,
+  .hero-stage-1 .hero-inner {
+    will-change: transform, opacity;
+  }
+}
+
 /* ---- Link hover: two-line masked slide ---- */
 .link-anim {
   position: relative;
@@ -248,9 +261,25 @@ footer {
   display: flex;
   width: max-content;
   animation: marquee var(--marquee-duration, 40s) linear infinite;
+  /* Promote to its own compositor layer so the continuous translate never
+     shares a layer with the scroll-driven card reveals — keeps the loop
+     smooth on mobile GPUs while the rest of the section animates. */
+  will-change: transform;
+  transform: translateZ(0);
 }
 .marquee-track.rev {
   animation-name: marquee-rev;
+}
+
+/* On phones --px rebases to /390, so the 45-design-px name renders ~32px and a
+   single name can span the whole viewport — the loop then looks empty/stalled.
+   Shrink the name and let the tighter item spacing (max-s: pr/gap) pack two or
+   more names on screen so the scroll reads as continuous. Desktop is untouched:
+   this override only applies below the s breakpoint. */
+@media (max-width: 40rem) {
+  .marquee-name {
+    font-size: calc(20 * var(--px));
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

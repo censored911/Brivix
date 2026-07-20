@@ -118,14 +118,16 @@ export default function StimulateMemory() {
                 {[...row, ...row].map((name, j) => (
                   <div
                     key={`${name}-${j}`}
-                    className="pr-120 max-s:pr-50 shrink-0 flex items-center gap-60 max-s:gap-25"
+                    className="marquee-item pr-120 max-s:pr-40 shrink-0 flex items-center gap-60 max-s:gap-20"
                     aria-hidden={j >= row.length}
                   >
-                    {/* `_45` rather than an inline `calc(n * var(--px))`:
-                        --px rebases from /1920 to /390 under the s breakpoint,
-                        so a hardcoded multiplier renders *larger* on phones.
-                        The type-scale classes already carry mobile overrides. */}
-                    <span className="_45 whitespace-nowrap leading-none">
+                    {/* Desktop keeps the 45-design-px display size. On phones a
+                        dedicated size (see .marquee-name) shrinks each name so
+                        two-plus fit the 390 viewport and the loop reads as
+                        continuous motion rather than one word at a time —
+                        --px rebasing to /390 makes the desktop multiplier far
+                        too large otherwise. */}
+                    <span className="marquee-name _45 whitespace-nowrap leading-none">
                       {name}
                     </span>
                     <span className="_16 font-mono opacity-30 shrink-0">✳</span>

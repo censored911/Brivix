@@ -129,7 +129,7 @@ export default function ActivateNerves() {
       className="py-section relative z-1"
     >
       <div className="px-80 max-s:px-20">
-        <h2 className="h1 section-title split-mask ml-100 max-w-[900]">
+        <h2 className="h1 section-title split-mask ml-100 max-s:ml-0 max-w-[900]">
           we trigger 
           <br />
           Insight.

@@ -63,12 +63,20 @@ function fovFor(width: number, height: number) {
   return Math.min(fov, MAX_FOV);
 }
 
+/** Phones (below the s breakpoint) can't afford MSAA at 2x DPR while Lenis and
+ *  several scrubbed ScrollTriggers drive per-frame matrix lerps. Detected once
+ *  at mount; desktop keeps the original antialias + 2x path untouched. */
+const isMobile = () =>
+  typeof window !== "undefined" && window.matchMedia("(max-width: 40rem)").matches;
+
 export default function GLBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+
+    const mobile = isMobile();
 
     const scene = new THREE.Scene();
     // Matches the original's Camera.setInstance() on desktop. Their code also
@@ -88,8 +96,11 @@ export default function GLBackground() {
       (window as unknown as Record<string, unknown>).__glDebug = { scene, camera };
     }
 
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    // Antialias is the single biggest per-fragment cost here; on mobile the
+    // dither/stroke look already hides aliasing, so drop MSAA and cap DPR at
+    // 1.5 (vs desktop's 2). Desktop keeps antialias + 2x exactly as before.
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: !mobile });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.5 : 2));
     renderer.setSize(innerWidth, innerHeight);
 
     const loader = new GLTFLoader();
@@ -238,6 +249,24 @@ export default function GLBackground() {
     let raf = 0;
     const clock = new THREE.Clock();
     const tick = () => {
+      raf = requestAnimationFrame(tick);
+
+      // Nothing visible → nothing to draw. Between section hand-offs every
+      // group is faded out (setOpacity flips .visible off), which is exactly
+      // where the Hero→Insight scroll spends much of its travel. Skipping the
+      // draw *and* the uTime writes there reclaims the GPU for the DOM
+      // animations that are janking. The scrub onUpdate callbacks still fire
+      // on their own (they're driven by ScrollTrigger, not this loop), so the
+      // scene is always correct the instant a group becomes visible again.
+      let anyVisible = false;
+      for (let i = 0; i < groups.length; i++) {
+        if (groups[i].visible) {
+          anyVisible = true;
+          break;
+        }
+      }
+      if (!anyVisible) return;
+
       // The clip/dither noise animates on uTime; the original feeds it
       // elapsed milliseconds * 0.001.
       const t = clock.getElapsedTime();
@@ -245,8 +274,20 @@ export default function GLBackground() {
         m.uniforms.uTime.value = t;
       });
       renderer.render(scene, camera);
-      raf = requestAnimationFrame(tick);
     };
+
+    // Pause the entire loop while the tab is backgrounded — no reason to burn
+    // the GPU (and the clock) on a scene no one can see. getDelta-free clock
+    // use (getElapsedTime) means the dither animation simply resumes on return.
+    const onVisibility = () => {
+      if (document.hidden) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      } else if (!raf) {
+        raf = requestAnimationFrame(tick);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
     raf = requestAnimationFrame(tick);
 
     const onResize = () => {
@@ -260,6 +301,7 @@ export default function GLBackground() {
     return () => {
       disposed = true;
       cancelAnimationFrame(raf);
+      document.removeEventListener("visibilitychange", onVisibility);
       removeEventListener("resize", onResize);
       triggers.forEach((t) => t.kill());
       groups.forEach((g) => scene.remove(g));
