@@ -131,16 +131,21 @@ footer {
   writing-mode: vertical-rl;
 }
 
-/* ---- Noise overlay ---- */
+/* ---- Noise overlay ----
+   mix-blend-mode composites this against everything painted below it. Pinning
+   it to its own GPU layer (translateZ) lets the compositor cache the blended
+   result and re-use it while the page scrolls, instead of re-running the
+   full-viewport blend every time a layer beneath it transforms. */
 .noise {
   width: max(100lvw, 100lvh);
   height: max(100lvw, 100lvh);
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) translateZ(0);
   background-image: url("/images/noise.webp");
   background-repeat: repeat;
   background-size: calc(450 * var(--px));
   opacity: 0.5;
   mix-blend-mode: overlay;
+  will-change: transform;
 }
 
 /* ---- Section rhythm ----
@@ -196,8 +201,23 @@ footer {
   top: 100%;
   width: 100%;
 }
-.link-anim:hover > span {
-  transform: translateY(-100%);
+/* Fine-pointer devices keep the hover slide. Gating it behind hover/pointer
+   stops touchscreens from firing a sticky false-hover on tap (the slide would
+   stay stuck up after the finger lifts). Touch feedback is restored below. */
+@media (hover: hover) and (pointer: fine) {
+  .link-anim:hover > span {
+    transform: translateY(-100%);
+  }
+}
+/* Touch feedback: the same masked slide plays on press, so tapping any
+   nav/footer button shows the identical visual interaction the desktop hover
+   gives. `:active` retargets from the current position, so a quick tap eases
+   partway and the navigation carries the rest — no stuck state on release.
+   Scoped to coarse pointers so it never double-fires with the hover above. */
+@media (hover: none), (pointer: coarse) {
+  .link-anim:active > span {
+    transform: translateY(-100%);
+  }
 }
 
 /* ---- White gradient (services items) ---- */

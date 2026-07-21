@@ -120,6 +120,26 @@ export default function LegalContent({
         });
       });
 
+      // The clause triggers above are created synchronously, but the final
+      // layout they measure against only settles once the webfonts have
+      // swapped (their metrics reflow the clause heights) and, on mobile,
+      // once the dynamic viewport / URL-bar has resolved. Without a refresh
+      // that waits for both, the triggers keep the stale start positions they
+      // computed at mount — on phones those land out of range and the reveals
+      // never fire. Refresh after fonts.ready + two rAFs (one for the font
+      // reflow to paint, one for layout to settle) so the reveals trigger
+      // correctly as the reader scrolls, on desktop and mobile alike.
+      document.fonts.ready.then(() => {
+        if (disposed) return;
+        ctx.add(() => {
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => {
+              if (!disposed) ScrollTrigger.refresh();
+            })
+          );
+        });
+      });
+
       return () => {
         splits.forEach((s) => s.revert());
       };

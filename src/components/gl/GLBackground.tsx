@@ -3,9 +3,14 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { ScrollTrigger } from "@/lib/gsap";
+import { gsap, ScrollTrigger } from "@/lib/gsap";
 import { modelConfigs, type MultiStageConfig, type SimpleConfig, type Stage } from "./modelConfigs";
 import { applyFigureMaterials } from "./figureMaterials";
+import { markHeroReady, reportLoad } from "@/lib/heroReady";
+
+/** The hero figure is model index 0 — the one that owns the first impression
+ *  and must transition out of the preloader. */
+const HERO_INDEX = 0;
 
 function applyStage(group: THREE.Group, s: Stage) {
   group.position.set(s.position.x, s.position.y, s.position.z);
@@ -103,11 +108,65 @@ export default function GLBackground() {
     renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.5 : 2));
     renderer.setSize(innerWidth, innerHeight);
 
+    // Rate-limit the scrubbed matrix work so it's driven by GSAP's own eased
+    // catch-up rather than every raw Lenis tick. A small scrub value (vs the
+    // previous `scrub: true`, which is instant/unsmoothed) decouples the JS
+    // lerp + Three re-render from scroll frequency — the single biggest lever
+    // for scrub jank per gsap-performance. Slightly higher on mobile, whose GPU
+    // and main thread have the least headroom under Lenis.
+    const SCRUB = mobile ? 0.6 : 0.4;
+    // Mobile browsers fire resize on every URL-bar show/hide during scroll;
+    // letting ScrollTrigger refresh on those mid-scroll is a known stutter
+    // source. Ignore them — real layout changes still refresh explicitly.
+    ScrollTrigger.config({ ignoreMobileResize: true });
+
     const loader = new GLTFLoader();
     const triggers: ScrollTrigger[] = [];
     const groups: THREE.Group[] = [];
     const materials: THREE.ShaderMaterial[] = [];
+    // The hero figure's materials, tracked separately so the intro reveal can
+    // drive their uLoading clip from 0 → 1 without touching the other figures
+    // (which stay fully materialised and are governed by scroll visibility).
+    const heroMaterials: THREE.ShaderMaterial[] = [];
     let disposed = false;
+
+    // Intro-reveal state. uLoading gates the shader's depth/noise clip: at 0 the
+    // hero is not rasterised at all; ramping to 1 dissolves it into existence
+    // front-to-back through the dither. `revealDriven` flips true once the hero
+    // has loaded and rendered one real frame, after which the tick loop writes
+    // reveal.v into the hero materials every frame.
+    const reveal = { v: 0 };
+    let revealDriven = false;
+    let heroFramePainted = false;
+    let revealStarted = false;
+
+    // Begin the premium materialise-from-preloader ramp. Called only after the
+    // hero is genuinely ready to draw (loaded + one frame painted), so the
+    // animation never stutters on a first-frame shader compile.
+    const startHeroReveal = () => {
+      if (revealStarted || disposed) return;
+      revealStarted = true;
+      revealDriven = true;
+      // Tell the preloader the hero is live so the curtain lifts onto the
+      // reveal in progress — not before it, not long after.
+      markHeroReady();
+
+      // Respect reduced-motion: resolve the hero almost immediately with a
+      // short crossfade instead of the long theatrical dissolve.
+      const reduced =
+        typeof window !== "undefined" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      gsap.to(reveal, {
+        v: 1,
+        duration: reduced ? 0.4 : 2.2,
+        // A long, soft-settling ease: quick to commit, slow to resolve the last
+        // sliver of dither — reads as intentional and high-end rather than a
+        // linear wipe. Runs behind and through the lifting curtain.
+        ease: reduced ? "power1.out" : "power2.inOut",
+        delay: reduced ? 0 : 0.15,
+      });
+    };
 
     // gl section elements by index
     const sections = Array.from(document.querySelectorAll<HTMLElement>("[data-gl-section]")).reduce(
@@ -119,7 +178,7 @@ export default function GLBackground() {
     );
 
     const cache = new Map<string, Promise<THREE.Group>>();
-    const loadModel = (path: string) => {
+    const loadModel = (path: string, onProgress?: (e: ProgressEvent) => void) => {
       if (!cache.has(path)) {
         cache.set(
           path,
@@ -127,7 +186,7 @@ export default function GLBackground() {
             loader.load(
               path,
               (gltf) => resolve(gltf.scene),
-              undefined,
+              onProgress,
               (err) => reject(err)
             );
           })
@@ -136,11 +195,36 @@ export default function GLBackground() {
       return cache.get(path)!;
     };
 
+    // The hero GLB is the heaviest critical asset and the one the preloader's
+    // strict percentage is mostly made of. Stream its byte progress into the
+    // load registry as it downloads; the counter reflects the real transfer,
+    // never a timed guess. `lengthComputable` is true when the response carries
+    // Content-Length (our own /public assets always do), so this tracks the true
+    // fraction of bytes received. If it isn't computable, the step simply stays
+    // at 0 until the paint step lands — the bar never fabricates progress.
+    const reportHeroProgress = (e: ProgressEvent) => {
+      if (e.lengthComputable && e.total > 0) {
+        reportLoad("heroModel", e.loaded / e.total);
+      }
+    };
+
     modelConfigs.forEach((cfg) => {
-      loadModel(cfg.modelPath).then((proto) => {
+      const onProgress =
+        cfg.index === HERO_INDEX ? reportHeroProgress : undefined;
+      loadModel(cfg.modelPath, onProgress).then((proto) => {
         if (disposed) return;
         const model = proto.clone(true);
-        materials.push(...applyFigureMaterials(model, cfg));
+        const figMats = applyFigureMaterials(model, cfg);
+        materials.push(...figMats);
+        if (cfg.index === HERO_INDEX) {
+          // Hold the hero fully clipped (invisible) until the reveal ramp
+          // starts — otherwise it pops in fully-formed the instant the GLB
+          // resolves, unsynchronised with the preloader.
+          figMats.forEach((m) => {
+            m.uniforms.uLoading.value = 0;
+            heroMaterials.push(m);
+          });
+        }
         const group = new THREE.Group();
         group.add(model);
         const baseRot = new THREE.Euler(cfg.rotate.x, cfg.rotate.y, cfg.rotate.z);
@@ -169,7 +253,7 @@ export default function GLBackground() {
                 endTrigger: sections[seg.endTrigger] ?? trigEl,
                 start: seg.start,
                 end: seg.end,
-                scrub: true,
+                scrub: SCRUB,
                 onUpdate: (self) => lerpStage(group, a, b, self.progress, baseRot),
               })
             );
@@ -184,7 +268,7 @@ export default function GLBackground() {
                 endTrigger: sections[vt.endTrigger] ?? vtEl,
                 start: vt.start,
                 end: vt.end,
-                scrub: true,
+                scrub: SCRUB,
                 onUpdate: (self) => setOpacity(group, 1 - Math.min(1, self.progress * 2)),
               })
             );
@@ -207,7 +291,7 @@ export default function GLBackground() {
                 endTrigger: sections[sc.transform.endTrigger] ?? trigEl,
                 start: sc.transform.start,
                 end: sc.transform.end,
-                scrub: true,
+                scrub: SCRUB,
                 onUpdate: (self) => lerpStage(group, sc.startPos, sc.endPos, self.progress, baseRot),
               })
             );
@@ -221,7 +305,7 @@ export default function GLBackground() {
                 endTrigger: sections[vt.endTrigger] ?? vtEl,
                 start: vt.start,
                 end: vt.end,
-                scrub: true,
+                scrub: SCRUB,
                 onUpdate: (self) => {
                   // fade in over first 15%, fade out over last 15%
                   const p = self.progress;
@@ -235,6 +319,14 @@ export default function GLBackground() {
 
         groups.push(group);
         scene.add(group);
+
+        // Pre-compile this figure's shader programs now, off the reveal's
+        // critical path. Without this the program links on the frame the mesh
+        // first draws — for the hero that would be the frame the reveal starts,
+        // stalling its opening motion. compile() is synchronous but happens
+        // during idle load time, so it costs nothing the user can feel.
+        renderer.compile(scene, camera);
+
         ScrollTrigger.refresh();
       }).catch((err) => {
         // Degrade silently for visitors — a missing figure is not worth an
@@ -248,6 +340,16 @@ export default function GLBackground() {
 
     let raf = 0;
     const clock = new THREE.Clock();
+    // Mobile GPUs have the least headroom while Lenis + the scrubbed matrix
+    // work run, and that contention is what makes the landing scroll feel
+    // heavier than About (which has no WebGL). Cap the *continuous dither*
+    // redraw to ~30fps on phones: it roughly halves the per-frame GPU/main-
+    // thread cost during the long static holds, handing that budget back to
+    // the DOM scroll-reveals. The intro reveal is exempt (full rate) so the
+    // opening dissolve stays perfectly fluid, and scrub onUpdate callbacks are
+    // ScrollTrigger-driven, so figure motion during scroll is never throttled.
+    const FRAME_MS = mobile ? 1000 / 30 : 0;
+    let lastDraw = 0;
     const tick = () => {
       raf = requestAnimationFrame(tick);
 
@@ -267,13 +369,45 @@ export default function GLBackground() {
       }
       if (!anyVisible) return;
 
+      // Mobile dither-rate cap. Skip this frame's redraw if we're inside the
+      // ~33ms budget — unless the intro reveal is live, which must never be
+      // throttled. `now` comes from the same rAF clock so the cadence is even.
+      if (FRAME_MS && !revealDriven) {
+        const now = performance.now();
+        if (now - lastDraw < FRAME_MS) return;
+        lastDraw = now;
+      }
+
       // The clip/dither noise animates on uTime; the original feeds it
       // elapsed milliseconds * 0.001.
       const t = clock.getElapsedTime();
       materials.forEach((m) => {
         m.uniforms.uTime.value = t;
       });
+
+      // Drive the intro reveal: write the eased ramp into the hero's clip
+      // uniform every frame while it runs. Kept in the render loop (not the
+      // GSAP onUpdate) so the uniform and the draw are always the same frame —
+      // no torn state, no flicker.
+      if (revealDriven) {
+        for (let i = 0; i < heroMaterials.length; i++) {
+          heroMaterials[i].uniforms.uLoading.value = reveal.v;
+        }
+      }
+
       renderer.render(scene, camera);
+
+      // First real frame with the hero present and compiled: the GLB is loaded,
+      // materials/shaders are applied, and this render() has just forced their
+      // compile + a genuine paint at uLoading 0 (invisible but fully warmed).
+      // Only now is it safe to start the reveal — the animation can't hit a
+      // shader-compile stall, so it stays fluid from its very first frame.
+      if (!heroFramePainted && heroMaterials.length > 0) {
+        heroFramePainted = true;
+        // One extra rAF so the compiled frame is guaranteed presented before
+        // the clip starts moving — belt-and-braces against a first-move hitch.
+        requestAnimationFrame(startHeroReveal);
+      }
     };
 
     // Pause the entire loop while the tab is backgrounded — no reason to burn
