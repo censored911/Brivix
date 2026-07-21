@@ -142,7 +142,7 @@ export default function Hero() {
             width-driven; the trailing margins step the lines in from the right. */}
         <div
           data-hero-stage-2
-          className="hero-stage-scrub relative h-[550vh] mt-[40vh] max-s:h-[250vh]"
+          className="hero-stage-scrub relative h-[550vh] mt-[40vh] max-s:h-[400vh]"
         >
           <div className="hero-inner sticky top-0 z-2 flex min-h-svh flex-col items-end justify-center">
             <h2 className="h2 hero-h2 section-title text-right">
@@ -160,7 +160,7 @@ export default function Hero() {
         </div>
 
         {/* Stage 3 — leading margins step the lines out into a staircase. */}
-        <div className="hero-stage-scrub relative h-[550vh] -mb-[40vh] max-s:h-[250vh]">
+        <div className="hero-stage-scrub relative h-[550vh] -mb-[40vh] max-s:h-[400vh]">
           <div className="hero-inner sticky top-0 z-2 flex min-h-svh flex-col items-start justify-center">
             <h2 className="h2 hero-h2 section-title">
               <div>

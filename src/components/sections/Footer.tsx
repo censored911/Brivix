@@ -206,12 +206,15 @@ export default function Footer() {
             glyph box — which is taller than this wrapper and paints last —
             from stealing clicks from the links above it, and `select-none`
             keeps a stray drag from highlighting it. */}
-        {/* On mobile the wrapper is tall enough to show the wordmark whole:
-            the clipped-letterform treatment reads as art direction at desktop
-            width, but as a rendering fault on a 390px screen. */}
+        {/* Mobile now shares the desktop clip ratio (h = 13.02vw against a
+            22.396vw type size): the wrapper is shorter than the glyphs, so
+            overflow-clip cuts the wordmark near its baseline and only the top
+            portion of the letters shows. Left-aligned (no centering) so its
+            left edge sits on the same column as the "Impossible to resist"
+            line above it. */}
         <div
           data-footer-rest
-          className="h-[13.02vw] max-s:h-[26vw] pointer-events-none select-none"
+          className="h-[13.02vw] pointer-events-none select-none"
         >
           <div
             className="font-medium leading-none"

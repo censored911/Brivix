@@ -42,7 +42,7 @@ function AccordionItem({
       style={{ marginLeft: `calc(${step * 18} * var(--px))` }}
     >
       <div
-        className="flex items-center gap-10 px-20 py-20 cursor-pointer group hover:bg-white/50 transition-colors duration-[400ms]"
+        className="flex items-center gap-10 px-20 py-20 cursor-pointer group hover:bg-white/50 active:bg-white/50 transition-colors duration-[400ms]"
         onClick={toggle}
         role="button"
         aria-expanded={open}

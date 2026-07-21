@@ -1,4 +1,9 @@
-import type { LegalDoc } from "@/data/legal";
+import {
+  LEGAL_ADDRESS,
+  LEGAL_COPYRIGHT_YEAR,
+  LEGAL_ENTITY,
+  type LegalDoc,
+} from "@/data/legal";
 
 /**
  * Dependency-free PDF writer for the legal documents.
@@ -48,6 +53,7 @@ const W_BOLD = [
 
 const EM_DASH = 0x97; // WinAnsi em dash
 const BULLET = 0x95; // WinAnsi bullet
+const COPYRIGHT = 0xa9; // WinAnsi copyright sign (©)
 
 /** Advance width of a glyph in points. */
 function glyphWidth(code: number, bold: boolean, size: number): number {
@@ -56,13 +62,16 @@ function glyphWidth(code: number, bold: boolean, size: number): number {
   if (code >= 32 && code <= 126) units = table[code - 32];
   else if (code === EM_DASH) units = 1000;
   else if (code === BULLET) units = 350;
+  else if (code === COPYRIGHT) units = 737;
   else units = 556;
   return (units / 1000) * size;
 }
 
-/** Fold the document's only non-ASCII char into its WinAnsi code point. */
+/** Fold the document's non-ASCII chars into their WinAnsi code points. */
 function norm(s: string): string {
-  return s.replace(/—/g, String.fromCharCode(EM_DASH));
+  return s
+    .replace(/—/g, String.fromCharCode(EM_DASH))
+    .replace(/©/g, String.fromCharCode(COPYRIGHT));
 }
 
 function stringWidth(s: string, bold: boolean, size: number): number {
@@ -127,12 +136,27 @@ export function buildLegalPdf(doc: LegalDoc): Uint8Array {
   let cur = "";
   let y = PAGE_H - MARGIN;
 
+  // A branded two-tier footer so every page is unmistakably an official Brivix
+  // document: the wordmark and page number sit on the upper line, and the full
+  // copyright / entity notice plus the document name on the line beneath.
   const footer = (pageIndex: number) => {
-    const left = escapePdf(norm(doc.title));
-    cur += `BT /F1 8 Tf ${GRAY.join(" ")} rg 1 0 0 1 ${num(MARGIN)} 34 Tm (${left}) Tj ET\n`;
+    // Hairline separating the footer band from the content above it.
+    cur += `q 0.85 0.85 0.85 RG 0.6 w ${num(MARGIN)} 50 m ${num(PAGE_W - MARGIN)} 50 l S Q\n`;
+
+    // Tier 1 — brand wordmark (left) + page number (right).
+    cur += `BT /F2 9 Tf ${BLACK.join(" ")} rg 1 0 0 1 ${num(MARGIN)} 37 Tm (${escapePdf(LEGAL_ENTITY)}) Tj ET\n`;
     const label = `Page ${pageIndex + 1}`;
-    const x = PAGE_W - MARGIN - stringWidth(label, false, 8);
-    cur += `BT /F1 8 Tf ${GRAY.join(" ")} rg 1 0 0 1 ${num(x)} 34 Tm (${label}) Tj ET\n`;
+    const lx = PAGE_W - MARGIN - stringWidth(label, false, 8);
+    cur += `BT /F1 8 Tf ${GRAY.join(" ")} rg 1 0 0 1 ${num(lx)} 37 Tm (${escapePdf(label)}) Tj ET\n`;
+
+    // Tier 2 — copyright / entity notice (left) + document name (right).
+    const notice = norm(
+      `© ${LEGAL_COPYRIGHT_YEAR} ${LEGAL_ENTITY}. All rights reserved. — ${LEGAL_ADDRESS}`,
+    );
+    cur += `BT /F1 7.5 Tf ${GRAY.join(" ")} rg 1 0 0 1 ${num(MARGIN)} 24 Tm (${escapePdf(notice)}) Tj ET\n`;
+    const title = norm(doc.title);
+    const tx = PAGE_W - MARGIN - stringWidth(title, false, 7.5);
+    cur += `BT /F1 7.5 Tf ${GRAY.join(" ")} rg 1 0 0 1 ${num(tx)} 24 Tm (${escapePdf(title)}) Tj ET\n`;
   };
 
   footer(0);

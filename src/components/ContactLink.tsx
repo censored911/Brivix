@@ -167,7 +167,7 @@ export default function ContactLink({
                   type="button"
                   onClick={close}
                   aria-label="Close"
-                  className="_9 font-mono uppercase shrink-0 pt-2 opacity-60 hover:opacity-100 transition-opacity"
+                  className="_9 font-mono uppercase shrink-0 pt-2 opacity-60 hover:opacity-100 active:opacity-100 transition-opacity"
                   style={{ transitionTimingFunction: "var(--smooth)" }}
                 >
                   Close
@@ -186,7 +186,7 @@ export default function ContactLink({
                     className="group flex items-baseline justify-between gap-16 py-11 border-b border-dashed border-black/25 last:border-b-0"
                   >
                     <span className="_20">{opt.label}</span>
-                    <span className="_9 font-mono uppercase opacity-45 group-hover:opacity-100 transition-opacity">
+                    <span className="_9 font-mono uppercase opacity-45 group-hover:opacity-100 group-active:opacity-100 transition-opacity">
                       {opt.hint}
                     </span>
                   </a>
@@ -196,7 +196,7 @@ export default function ContactLink({
               <button
                 type="button"
                 onClick={copy}
-                className="_9 font-mono uppercase mt-14 pt-11 w-full text-left border-t border-dashed border-black/60 opacity-60 hover:opacity-100 transition-opacity"
+                className="_9 font-mono uppercase mt-14 pt-11 w-full text-left border-t border-dashed border-black/60 opacity-60 hover:opacity-100 active:opacity-100 transition-opacity"
                 style={{ transitionTimingFunction: "var(--smooth)" }}
               >
                 {copied ? "Copied to clipboard" : "Copy address instead"}

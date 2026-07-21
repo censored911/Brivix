@@ -178,10 +178,10 @@ export default function LegalContent({
               download
               rel="nofollow noopener"
               aria-label={`Download ${doc.title} as PDF`}
-              className="group inline-flex items-center gap-10 rounded-full border border-black/25 pl-16 pr-8 py-6 _9 font-mono uppercase tracking-wider transition-[color,background-color,border-color,transform] duration-[500ms] ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-black hover:border-black hover:text-white active:scale-[0.98]"
+              className="group inline-flex items-center gap-10 rounded-full border border-black/25 pl-16 pr-8 py-6 _9 font-mono uppercase tracking-wider transition-[color,background-color,border-color,transform] duration-[500ms] ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-black hover:border-black hover:text-white active:bg-black active:border-black active:text-white active:scale-[0.98]"
             >
               Download PDF
-              <span className="inline-flex h-20 w-20 items-center justify-center rounded-full border border-black/20 transition-transform duration-[500ms] ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-y-[1px] group-hover:border-white/40">
+              <span className="inline-flex h-20 w-20 items-center justify-center rounded-full border border-black/20 transition-transform duration-[500ms] ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-y-[1px] group-hover:border-white/40 group-active:translate-y-[1px] group-active:border-white/40">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"

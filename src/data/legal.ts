@@ -15,6 +15,16 @@ const ENTITY = "Brivix";
 const ADDRESS = "Cairo, Egypt";
 const UPDATED = "19 July 2026";
 
+/**
+ * Brand identifiers surfaced beyond the page — e.g. the generated PDF footer,
+ * which must read as an official Brivix document. Year is derived from
+ * `UPDATED` so the copyright line never drifts from the document it stamps.
+ */
+export const LEGAL_ENTITY = ENTITY;
+export const LEGAL_ADDRESS = ADDRESS;
+export const LEGAL_COPYRIGHT_YEAR =
+  UPDATED.match(/\d{4}/)?.[0] ?? String(new Date().getFullYear());
+
 export type LegalSection = {
   title: string;
   /** Rendered as body paragraphs, in order, above any bullets. */
